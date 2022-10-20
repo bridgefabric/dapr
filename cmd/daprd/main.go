@@ -32,8 +32,9 @@ import (
 	secretstoresLoader "github.com/dapr/dapr/pkg/components/secretstores"
 	stateLoader "github.com/dapr/dapr/pkg/components/state"
 
-	"github.com/dapr/dapr/pkg/runtime"
 	"github.com/dapr/kit/logger"
+
+	"github.com/dapr/dapr/pkg/runtime"
 )
 
 var (

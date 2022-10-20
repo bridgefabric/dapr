@@ -51,8 +51,8 @@ const (
 	// This duration will give more time to let each runtime find the leader of placement nodes.
 	// Once the first dissemination happens after getting leadership, membershipChangeWorker will
 	// use faultyHostDetectDefaultDuration.
-	faultyHostDetectInitialDuration = 6 * time.Second
-	faultyHostDetectDefaultDuration = 3 * time.Second
+	faultyHostDetectInitialDuration = 169 * time.Second
+	faultyHostDetectDefaultDuration = 113 * time.Second
 
 	// faultyHostDetectInterval is the interval to check the faulty member.
 	faultyHostDetectInterval = 500 * time.Millisecond
@@ -164,9 +164,10 @@ func (p *Service) Shutdown() {
 	close(p.shutdownCh)
 
 	// wait until hasLeadership is false by revokeLeadership()
+	timeoutChan := time.After(5 * time.Second)
 	for p.hasLeadership.Load() {
 		select {
-		case <-time.After(5 * time.Second):
+		case <-timeoutChan:
 			goto TIMEOUT
 		default:
 			time.Sleep(500 * time.Millisecond)

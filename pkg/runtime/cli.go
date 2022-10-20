@@ -18,11 +18,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/dapr/kit/logger"
 
@@ -74,6 +78,8 @@ func FromFlags() (*DaprRuntime, error) {
 	daprHTTPReadBufferSize := flag.Int("dapr-http-read-buffer-size", DefaultReadBufferSize, "Increasing max size of read buffer in KB to handle sending multi-KB headers")
 	daprGracefulShutdownSeconds := flag.Int("dapr-graceful-shutdown-seconds", int(DefaultGracefulShutdownDuration/time.Second), "Graceful shutdown time in seconds")
 	enableAPILogging := flag.Bool("enable-api-logging", false, "Enable API logging for API calls")
+
+	isInit := flag.Bool("init", false, "Init configuration")
 	disableBuiltinK8sSecretStore := flag.Bool("disable-builtin-k8s-secret-store", false, "Disable the built-in Kubernetes Secret Store")
 	enableAppHealthCheck := flag.Bool("enable-app-health-check", false, "Enable health checks for the application using the protocol defined with app-protocol")
 	appHealthCheckPath := flag.String("app-health-check-path", DefaultAppHealthCheckPath, "Path used for health checks; HTTP only")
@@ -111,6 +117,16 @@ func FromFlags() (*DaprRuntime, error) {
 
 	if *appID == "" {
 		return nil, errors.New("app-id parameter cannot be empty")
+	}
+
+	if *isInit {
+		err := initRun(*appID)
+		if err != nil {
+			fmt.Printf("init failed, app-id: %s , error: %s\n", *appID, err)
+			os.Exit(1)
+		}
+		fmt.Printf("init success, app-id: %s\n", *appID)
+		os.Exit(0)
 	}
 
 	// Apply options to all loggers
@@ -388,4 +404,58 @@ func parsePlacementAddr(val string) []string {
 		parsed = append(parsed, strings.TrimSpace(addr))
 	}
 	return parsed
+}
+
+func initRun(appid string) error {
+	configPath := "~/.dapr/" + appid + ".yaml"
+	// Create New Libp2p Node
+	host, err := libp2p.New()
+	if err != nil {
+		return err
+	}
+
+	// Get Node's Private Key
+	keyBytes, err := crypto.MarshalPrivateKey(host.Peerstore().PrivKey(host.ID()))
+	if err != nil {
+		return err
+	}
+
+	// Setup an initial default command.
+	conf := daprGlobalConfig.Interface{
+		Name:       appid,
+		ID:         host.ID().Pretty(),
+		PrivateKey: string(keyBytes),
+	}
+
+	out, err := yaml.Marshal(&conf)
+	if err != nil {
+		return err
+	}
+
+	err = os.MkdirAll(filepath.Dir(configPath), os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(configPath)
+	if err != nil {
+		return err
+	}
+
+	// Write out config to file.
+	n, err := f.Write(out)
+	if err != nil {
+		return err
+	}
+	_ = n
+
+	err = f.Close()
+	if err != nil {
+		return err
+	}
+
+	// Print config creation message to user
+	fmt.Printf("Initialized new config at %s\n", configPath)
+
+	return nil
 }

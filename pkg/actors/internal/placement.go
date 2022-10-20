@@ -42,7 +42,7 @@ const (
 	updateOperation = "update"
 
 	placementReconnectInterval    = 500 * time.Millisecond
-	statusReportHeartbeatInterval = 1 * time.Second
+	statusReportHeartbeatInterval = 11 * time.Second
 
 	grpcServiceConfig = `{"loadBalancingPolicy":"round_robin"}`
 )

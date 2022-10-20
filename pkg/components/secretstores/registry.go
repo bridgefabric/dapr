@@ -19,8 +19,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/dapr/components-contrib/secretstores"
-	"github.com/dapr/dapr/pkg/components"
 	"github.com/dapr/kit/logger"
+
+	"github.com/dapr/dapr/pkg/components"
 )
 
 // Name of the built-in Kubernetes secret store component.

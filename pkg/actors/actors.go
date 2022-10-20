@@ -226,10 +226,10 @@ func (a *actorsRuntime) Init() error {
 	// disconnect from placement to remove the node from consistent hashing ring.
 	// i.e if app is busy state, the healthz status would be flaky, which leads to frequent
 	// actor rebalancing. It will impact the entire service.
-	go a.startAppHealthCheck(
-		health.WithFailureThreshold(4),
-		health.WithInterval(5*time.Second),
-		health.WithRequestTimeout(2*time.Second))
+	// go a.startAppHealthCheck(
+	//	health.WithFailureThreshold(4),
+	//	health.WithInterval(5*time.Second),
+	//	health.WithRequestTimeout(2*time.Second))
 
 	return nil
 }

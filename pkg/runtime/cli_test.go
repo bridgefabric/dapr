@@ -44,3 +44,8 @@ func TestParsePlacementAddr(t *testing.T) {
 		})
 	}
 }
+
+func TestInit(t *testing.T) {
+	err := initRun("a")
+	assert.Nil(t, err)
+}
