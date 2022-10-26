@@ -12,7 +12,7 @@ import (
 )
 
 func TestChannel(t *testing.T) {
-	c, e := CreateWASMChannel(0, 10, config.TracingSpec{}, false, 0, 0)
+	c, e := CreateWASMChannel(0, 10, config.TracingSpec{}, false, 0, 0, nil)
 	if e != nil {
 		t.Error(e)
 	}
@@ -25,7 +25,7 @@ func TestChannel(t *testing.T) {
 }
 
 func TestSave(t *testing.T) {
-	c, e := CreateWASMChannel(0, 10, config.TracingSpec{}, false, 0, 0)
+	c, e := CreateWASMChannel(0, 10, config.TracingSpec{}, false, 0, 0, nil)
 	if e != nil {
 		t.Error(e)
 	}

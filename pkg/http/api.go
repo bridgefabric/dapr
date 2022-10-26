@@ -35,6 +35,7 @@ import (
 	"github.com/dapr/components-contrib/bindings"
 	"github.com/dapr/components-contrib/configuration"
 	"github.com/dapr/components-contrib/lock"
+
 	lockLoader "github.com/dapr/dapr/pkg/components/lock"
 	"github.com/dapr/dapr/pkg/version"
 
@@ -42,6 +43,7 @@ import (
 	"github.com/dapr/components-contrib/pubsub"
 	"github.com/dapr/components-contrib/secretstores"
 	"github.com/dapr/components-contrib/state"
+
 	"github.com/dapr/dapr/pkg/actors"
 	componentsV1alpha1 "github.com/dapr/dapr/pkg/apis/components/v1alpha1"
 	"github.com/dapr/dapr/pkg/channel"
@@ -1635,17 +1637,18 @@ func (a *api) onActorStateTransaction(reqCtx *fasthttp.RequestCtx) {
 		return
 	}
 
-	hosted := a.actor.IsActorHosted(reqCtx, &actors.ActorHostedRequest{
-		ActorType: actorType,
-		ActorID:   actorID,
-	})
-
-	if !hosted {
-		msg := NewErrorResponse("ERR_ACTOR_INSTANCE_MISSING", messages.ErrActorInstanceMissing)
-		respond(reqCtx, withError(fasthttp.StatusBadRequest, msg))
-		log.Debug(msg)
-		return
-	}
+	// todo check if can run this actor.
+	//hosted := a.actor.IsActorHosted(reqCtx, &actors.ActorHostedRequest{
+	//	ActorType: actorType,
+	//	ActorID:   actorID,
+	//})
+	//
+	//if !hosted {
+	//	msg := NewErrorResponse("ERR_ACTOR_INSTANCE_MISSING", messages.ErrActorInstanceMissing)
+	//	respond(reqCtx, withError(fasthttp.StatusBadRequest, msg))
+	//	log.Debug(msg)
+	//	return
+	//}
 
 	req := actors.TransactionalRequest{
 		ActorID:    actorID,

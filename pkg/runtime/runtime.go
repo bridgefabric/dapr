@@ -527,6 +527,9 @@ func (a *DaprRuntime) initRuntime(opts *runtimeOpts) error {
 		} else {
 			a.daprHTTPAPI.SetActorRuntime(a.actor)
 			grpcAPI.SetActorRuntime(a.actor)
+			if ac, ok := a.appChannel.(*wasmapi.Channel); ok {
+				ac.SetActor(a.actor)
+			}
 		}
 	}
 
@@ -2068,6 +2071,7 @@ func (a *DaprRuntime) initActors() error {
 	act := actors.NewActors(a.stateStores[a.actorStateStoreName], a.appChannel, a.grpc.GetGRPCConnection, actorConfig,
 		a.runtimeConfig.CertChain, a.globalConfig.Spec.TracingSpec, a.globalConfig.Spec.Features,
 		a.resiliency, a.actorStateStoreName)
+
 	err = act.Init()
 	if err == nil {
 		a.actor = act
@@ -2521,7 +2525,7 @@ func (a *DaprRuntime) loadAppConfiguration() {
 }
 
 func (a *DaprRuntime) createAppChannel() (err error) {
-	if a.runtimeConfig.ApplicationPort == 0 {
+	if a.runtimeConfig.ApplicationPort == 0 && a.runtimeConfig.ApplicationProtocol != WASMProtocol {
 		log.Warn("App channel is not initialized. Did you configure an app-port?")
 		return nil
 	}
@@ -2540,7 +2544,7 @@ func (a *DaprRuntime) createAppChannel() (err error) {
 		}
 		ch.(*httpChannel.Channel).SetAppHealthCheckPath(a.runtimeConfig.AppHealthCheckHTTPPath)
 	case WASMProtocol:
-		ch, err = wasmapi.CreateWASMChannel(a.runtimeConfig.ApplicationPort, a.runtimeConfig.MaxConcurrency, a.globalConfig.Spec.TracingSpec, a.runtimeConfig.AppSSL, a.runtimeConfig.MaxRequestBodySize, a.runtimeConfig.ReadBufferSize)
+		ch, err = wasmapi.CreateWASMChannel(a.runtimeConfig.ApplicationPort, a.runtimeConfig.MaxConcurrency, a.globalConfig.Spec.TracingSpec, a.runtimeConfig.AppSSL, a.runtimeConfig.MaxRequestBodySize, a.runtimeConfig.ReadBufferSize, a.runtimeConfig.ID, a.sendToOutputBinding)
 		if err != nil {
 			return err
 		}

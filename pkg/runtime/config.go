@@ -38,6 +38,7 @@ const (
 	DefaultDaprPublicPort = 3501
 	// DefaultDaprAPIGRPCPort is the default API gRPC port for Dapr.
 	DefaultDaprAPIGRPCPort = 50001
+	DefaultDaprP2PPort     = 40001
 	// DefaultProfilePort is the default port for profiling endpoints.
 	DefaultProfilePort = 7777
 	// DefaultMetricsPort is the default port for metrics endpoints.
@@ -57,6 +58,7 @@ const (
 // Config holds the Dapr Runtime configuration.
 type Config struct {
 	ID                           string
+	P2PPort                      int
 	HTTPPort                     int
 	PublicPort                   *int
 	ProfilePort                  int
@@ -97,6 +99,7 @@ type NewRuntimeConfigOpts struct {
 	ComponentsPath               string
 	AppProtocol                  string
 	Mode                         string
+	P2PPort                      int
 	HTTPPort                     int
 	InternalGRPCPort             int
 	APIGRPCPort                  int
@@ -136,6 +139,7 @@ func NewRuntimeConfig(opts NewRuntimeConfigOpts) *Config {
 
 	return &Config{
 		ID:                  opts.ID,
+		P2PPort:             opts.P2PPort,
 		HTTPPort:            opts.HTTPPort,
 		PublicPort:          opts.PublicPort,
 		InternalGRPCPort:    opts.InternalGRPCPort,

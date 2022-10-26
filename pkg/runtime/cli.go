@@ -57,6 +57,7 @@ func FromFlags() (*DaprRuntime, error) {
 	daprInternalGRPCPort := flag.String("dapr-internal-grpc-port", "", "gRPC port for the Dapr Internal API to listen on")
 	appPort := flag.String("app-port", "", "The port the application is listening on")
 	profilePort := flag.String("profile-port", strconv.Itoa(DefaultProfilePort), "The port for the profile server")
+	p2pPort := flag.String("p2p-port", strconv.Itoa(DefaultDaprP2PPort), "The port for the p2p server")
 	appProtocol := flag.String("app-protocol", string(HTTPProtocol), "Protocol for the application: grpc or http")
 	componentsPath := flag.String("components-path", "", "Path for components directory. If empty, components will not be loaded. Self-hosted mode only")
 	resourcesPath := flag.String("resources-path", "", "Path for resources directory. If empty, resources will not be loaded. Self-hosted mode only")
@@ -141,6 +142,11 @@ func FromFlags() (*DaprRuntime, error) {
 	// Initialize dapr metrics exporter
 	if err := metricsExporter.Init(); err != nil {
 		log.Fatal(err)
+	}
+
+	daprP2P, err := strconv.Atoi(*p2pPort)
+	if err != nil {
+		return nil, errors.Wrap(err, "error parsing dapr-p2p-port flag")
 	}
 
 	daprHTTP, err := strconv.Atoi(*daprHTTPPort)
@@ -273,6 +279,7 @@ func FromFlags() (*DaprRuntime, error) {
 		AppProtocol:                  appPrtcl,
 		Mode:                         *mode,
 		HTTPPort:                     daprHTTP,
+		P2PPort:                      daprP2P,
 		InternalGRPCPort:             daprInternalGRPC,
 		APIGRPCPort:                  daprAPIGRPC,
 		APIListenAddresses:           daprAPIListenAddressList,
@@ -407,7 +414,7 @@ func parsePlacementAddr(val string) []string {
 }
 
 func initRun(appid string) error {
-	configPath := "~/.dapr/" + appid + ".yaml"
+	configPath := "~/.bridge/" + appid + ".yaml"
 	// Create New Libp2p Node
 	host, err := libp2p.New()
 	if err != nil {
@@ -437,7 +444,7 @@ func initRun(appid string) error {
 		return err
 	}
 
-	f, err := os.Create(configPath)
+	f, err := os.OpenFile(configPath, os.O_RDWR|os.O_CREATE, 0o766)
 	if err != nil {
 		return err
 	}

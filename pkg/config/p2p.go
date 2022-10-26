@@ -1,8 +1,3 @@
-/**
- * @Author: zhangchao
- * @Description:
- * @Date: 2022/9/13 5:24 PM
- */
 package config
 
 import (

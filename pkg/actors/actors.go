@@ -39,7 +39,7 @@ import (
 	"github.com/dapr/components-contrib/state"
 	"github.com/dapr/kit/logger"
 
-	"github.com/dapr/dapr/pkg/actors/internal"
+	"github.com/dapr/dapr/pkg/actors/wasm"
 	"github.com/dapr/dapr/pkg/channel"
 	"github.com/dapr/dapr/pkg/concurrency"
 	configuration "github.com/dapr/dapr/pkg/config"
@@ -82,11 +82,18 @@ type Actors interface {
 	GetActiveActorsCount(ctx context.Context) []ActiveActorsCount
 }
 
+type Placement interface {
+	Start()
+	WaitUntilPlacementTableIsReady()
+	LookupActor(actorType, actorID string) (string, string)
+	Stop()
+}
+
 type actorsRuntime struct {
 	appChannel             channel.AppChannel
 	store                  state.Store
 	transactionalStore     state.TransactionalStore
-	placement              *internal.ActorPlacement
+	placement              Placement
 	grpcConnectionFn       func(ctx context.Context, address, id string, namespace string, skipTLS, recreateIfExists, enableSSL bool, customOpts ...grpc.DialOption) (*grpc.ClientConn, func(), error)
 	config                 Config
 	actorsTable            *sync.Map
@@ -210,7 +217,7 @@ func (a *actorsRuntime) Init() error {
 	}
 	appHealthFn := func() bool { return a.appHealthy.Load() }
 
-	a.placement = internal.NewActorPlacement(
+	a.placement = wasm.NewActorPlacement(
 		a.config.PlacementAddresses, a.certChain,
 		a.config.AppID, hostname, a.config.HostedActorTypes,
 		appHealthFn,
@@ -539,6 +546,7 @@ func (a *actorsRuntime) callRemoteActor(
 }
 
 func (a *actorsRuntime) isActorLocal(targetActorAddress, hostAddress string, grpcPort int) bool {
+	return true
 	return strings.Contains(targetActorAddress, "localhost") || strings.Contains(targetActorAddress, "127.0.0.1") ||
 		targetActorAddress == fmt.Sprintf("%s:%v", hostAddress, grpcPort)
 }
@@ -625,7 +633,9 @@ func (a *actorsRuntime) TransactionalStateOperation(ctx context.Context, req *Tr
 	})
 }
 
+// todo fix this
 func (a *actorsRuntime) IsActorHosted(ctx context.Context, req *ActorHostedRequest) bool {
+	return true
 	key := constructCompositeKey(req.ActorType, req.ActorID)
 	exists := false
 	var policy resiliency.Runner
