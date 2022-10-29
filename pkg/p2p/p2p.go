@@ -13,6 +13,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var P2PHost host.Host
+var ErrP2PNotInitialized = errors.New("P2P host is not initialized")
+
 func CreatePrivateKey() ([]byte, string, error) {
 	prvkey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, rand.Reader)
 	if err != nil {

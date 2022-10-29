@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/dapr/components-contrib/lock"
+	gostream "github.com/libp2p/go-libp2p-gostream"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/google/uuid"
@@ -58,6 +59,7 @@ import (
 	"github.com/dapr/components-contrib/state"
 	"github.com/dapr/kit/logger"
 
+	"github.com/dapr/dapr/pkg/p2p"
 	"github.com/dapr/dapr/pkg/resiliency"
 	"github.com/dapr/dapr/pkg/wasmapi"
 
@@ -509,6 +511,14 @@ func (a *DaprRuntime) initRuntime(opts *runtimeOpts) error {
 	err = a.createAppChannel()
 	if err != nil {
 		log.Warnf("failed to open %s channel to app: %s", string(a.runtimeConfig.ApplicationProtocol), err)
+	}
+	// wasm enabled
+	if true {
+		listener, err := gostream.Listen(p2p.P2PHost, p2p.DefaultP2PProtocol)
+		if err != nil {
+			log.Warnf("failed to open create p2p host %s", err)
+		}
+		http.StartWasmInternalServer(a.appChannel, listener)
 	}
 	a.daprHTTPAPI.SetAppChannel(a.appChannel)
 	grpcAPI.SetAppChannel(a.appChannel)

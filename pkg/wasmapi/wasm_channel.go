@@ -1,8 +1,11 @@
 package wasmapi
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -11,12 +14,19 @@ import (
 	"github.com/dapr/kit/logger"
 	"github.com/pkg/errors"
 	"github.com/wapc/wapc-go/engines/wazero"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 
 	"github.com/dapr/dapr/pkg/actors"
 	"github.com/dapr/dapr/pkg/apphealth"
 	"github.com/dapr/dapr/pkg/channel"
 	"github.com/dapr/dapr/pkg/config"
+	diag "github.com/dapr/dapr/pkg/diagnostics"
+	diagUtils "github.com/dapr/dapr/pkg/diagnostics/utils"
 	invokev1 "github.com/dapr/dapr/pkg/messaging/v1"
+	"github.com/dapr/dapr/pkg/p2p"
+	commonv1pb "github.com/dapr/dapr/pkg/proto/common/v1"
 	"github.com/dapr/dapr/pkg/wasmapi/abi"
 	"github.com/dapr/dapr/pkg/wasmapi/eth"
 	"github.com/dapr/dapr/pkg/wasmapi/w3s"
@@ -138,11 +148,10 @@ func (h *Channel) callLocalActor(ctx context.Context, req *invokev1.InvokeMethod
 }
 
 func (h *Channel) callRemoteActor(ctx context.Context, hostIds []string, req *invokev1.InvokeMethodRequest) (*invokev1.InvokeMethodResponse, error) {
-	panic("implement me")
-	//tr := &http.Transport{}
-	//tr.RegisterProtocol("libp2p", p2p.NewTransport(clientHost))
-	//client := &http.Client{Transport: tr}
-	//res, err := client.Get("libp2p://Qmaoi4isbcTbFfohQyn28EiYM5CDWQx9QRCjDh3CTeiY7P/hello")
+	if len(hostIds) == 0 {
+		return nil, errors.New("no host id")
+	}
+	return Call(req, hostIds[0])
 }
 
 // InvokeMethod invokes user code via HTTP.
@@ -244,4 +253,103 @@ func (h *Channel) getActorPool(cid string) (*Pool, error) {
 	}
 	h.pools[cid] = pool
 	return pool, nil
+}
+
+func Call(req *invokev1.InvokeMethodRequest, id string) (*invokev1.InvokeMethodResponse, error) {
+	client, err := p2p.AcquireP2PClient()
+	if err != nil {
+		return nil, err
+	}
+	// Check if HTTP Extension is given. Otherwise, it will return error.
+	httpExt := req.Message().GetHttpExtension()
+	if httpExt == nil {
+		return nil, status.Error(codes.InvalidArgument, "missing HTTP extension field")
+	}
+	if httpExt.GetVerb() == commonv1pb.HTTPExtension_NONE { //nolint:nosnakecase
+		return nil, status.Error(codes.InvalidArgument, "invalid HTTP verb")
+	}
+
+	var rsp *invokev1.InvokeMethodResponse
+	channelReq, err := constructRequest(context.Background(), req, id)
+	if err != nil {
+		return nil, err
+	}
+	res, err := client.Do(channelReq)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	contentType := (string)(res.Header.Get("Content-Type"))
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	// Convert status code
+	rsp = invokev1.NewInvokeMethodResponse(int32(res.StatusCode), "", nil)
+	rsp.WithHeaders(metadata.MD(res.Header)).WithRawData(body, contentType)
+
+	return rsp, err
+}
+
+func constructRequest(ctx context.Context, req *invokev1.InvokeMethodRequest, id string) (*http.Request, error) {
+	var err error
+	//channelReq := http.Request{}
+	httpMethod := http.MethodPost
+	if req.Message().GetHttpExtension() != nil && len(req.Message().GetHttpExtension().GetVerb().String()) > 0 {
+		httpMethod = req.Message().GetHttpExtension().GetVerb().String()
+	}
+
+	// Construct app channel URI: VERB http://localhost:3000/method?query1=value1
+	var uri string
+	actorType := req.Actor().ActorType
+	_ = req.Actor().ActorId
+	contentType, body := req.RawData()
+	methods := strings.Split(req.Message().GetMethod(), "/")
+	method := methods[len(methods)-1]
+	if method == "" {
+		method = "default"
+	}
+	if strings.HasPrefix(method, "/") {
+		uri = fmt.Sprintf("%s://%s/%s%s", p2p.P2PProtocol, id, actorType, method)
+	} else {
+		uri = fmt.Sprintf("%s://%s/%s/%s", p2p.P2PProtocol, id, actorType, method)
+	}
+
+	channelReq, err := http.NewRequest(httpMethod, uri, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	channelReq.Header.Set("Content-Type", contentType)
+
+	channelReq.Header = make(http.Header)
+
+	// Recover headers
+	invokev1.InternalMetadataToHTTPHeader(ctx, req.Metadata(), channelReq.Header.Set)
+
+	// HTTP client needs to inject traceparent header for proper tracing stack.
+	span := diagUtils.SpanFromContext(ctx)
+	tp := diag.SpanContextToW3CString(span.SpanContext())
+	ts := diag.TraceStateToW3CString(span.SpanContext())
+	channelReq.Header.Set("traceparent", tp)
+	if ts != "" {
+		channelReq.Header.Set("tracestate", ts)
+	}
+
+	return channelReq, nil
+}
+
+// DeconstructRequest convert http to invoke format
+func DeconstructRequest(req *http.Request) (*invokev1.InvokeMethodRequest, error) {
+	reqMethod := req.Method
+	parts := strings.Split(reqMethod, "/")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("error method format: %s", reqMethod)
+	}
+	actorType, method := parts[0], strings.Join(parts[1:], "/")
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	defer req.Body.Close()
+	return invokev1.NewInvokeMethodRequest(method).WithRawData(body, "").WithActor(actorType, "default"), nil
 }

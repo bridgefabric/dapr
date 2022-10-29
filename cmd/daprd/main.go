@@ -22,6 +22,7 @@ import (
 
 	// Register all components
 	_ "github.com/dapr/dapr/cmd/daprd/components"
+	"github.com/dapr/dapr/cmd/daprd/p2p"
 
 	bindingsLoader "github.com/dapr/dapr/pkg/components/bindings"
 	configurationLoader "github.com/dapr/dapr/pkg/components/configuration"
@@ -47,6 +48,10 @@ func main() {
 	_, _ = maxprocs.Set()
 
 	rt, err := runtime.FromFlags()
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = p2p.InitP2p()
 	if err != nil {
 		log.Fatal(err)
 	}
