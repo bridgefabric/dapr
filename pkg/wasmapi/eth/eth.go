@@ -24,7 +24,9 @@ type BridgeDao struct {
 
 var CS *BridgeDao
 
-var DefaultConfig = &config.Web3{ETH: config.ETH{URL: "https://goerli.infura.io/v3", ProjectID: "2e6f863f2aca453ca82f6f7de72bed42"}, Contract: "0x91d5B95D3899E9eaFfC85562eE65d736CFBfe384", PrivateKey: "94b52af3d98c93ee82d85e972ca97ef3064133ec33e837c0eeb683e0d48c860a"}
+const contractAddress = "0x7Acd8C9B8f1dDe7d9E624d029622D541689b94d6"
+
+var DefaultConfig = &config.Web3{ETH: config.ETH{URL: "https://polygon-mumbai.infura.io/v3", ProjectID: "2e6f863f2aca453ca82f6f7de72bed42"}, Contract: contractAddress, PrivateKey: "94b52af3d98c93ee82d85e972ca97ef3064133ec33e837c0eeb683e0d48c860a"}
 
 func InitETH(cfg *config.Web3) error {
 	ctx := context.Background()
@@ -51,6 +53,7 @@ func InitETH(cfg *config.Web3) error {
 		Instance:    instance,
 		Auth:        auth,
 		listenActor: make(chan string, 10),
+		actorHosts:  make(map[string][]string),
 	}
 	go CS.listenForUpdate()
 	return nil

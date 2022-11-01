@@ -14,19 +14,14 @@ import (
 	"github.com/dapr/kit/logger"
 	"github.com/pkg/errors"
 	"github.com/wapc/wapc-go/engines/wazero"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
 
 	"github.com/dapr/dapr/pkg/actors"
 	"github.com/dapr/dapr/pkg/apphealth"
 	"github.com/dapr/dapr/pkg/channel"
 	"github.com/dapr/dapr/pkg/config"
-	diag "github.com/dapr/dapr/pkg/diagnostics"
-	diagUtils "github.com/dapr/dapr/pkg/diagnostics/utils"
 	invokev1 "github.com/dapr/dapr/pkg/messaging/v1"
 	"github.com/dapr/dapr/pkg/p2p"
-	commonv1pb "github.com/dapr/dapr/pkg/proto/common/v1"
 	"github.com/dapr/dapr/pkg/wasmapi/abi"
 	"github.com/dapr/dapr/pkg/wasmapi/eth"
 	"github.com/dapr/dapr/pkg/wasmapi/w3s"
@@ -261,13 +256,13 @@ func Call(req *invokev1.InvokeMethodRequest, id string) (*invokev1.InvokeMethodR
 		return nil, err
 	}
 	// Check if HTTP Extension is given. Otherwise, it will return error.
-	httpExt := req.Message().GetHttpExtension()
-	if httpExt == nil {
-		return nil, status.Error(codes.InvalidArgument, "missing HTTP extension field")
-	}
-	if httpExt.GetVerb() == commonv1pb.HTTPExtension_NONE { //nolint:nosnakecase
-		return nil, status.Error(codes.InvalidArgument, "invalid HTTP verb")
-	}
+	//httpExt := req.Message().GetHttpExtension()
+	//if httpExt == nil {
+	//	return nil, status.Error(codes.InvalidArgument, "missing HTTP extension field")
+	//}
+	//if httpExt.GetVerb() == commonv1pb.HTTPExtension_NONE { //nolint:nosnakecase
+	//	return nil, status.Error(codes.InvalidArgument, "invalid HTTP verb")
+	//}
 
 	var rsp *invokev1.InvokeMethodResponse
 	channelReq, err := constructRequest(context.Background(), req, id)
@@ -304,8 +299,10 @@ func constructRequest(ctx context.Context, req *invokev1.InvokeMethodRequest, id
 	actorType := req.Actor().ActorType
 	_ = req.Actor().ActorId
 	contentType, body := req.RawData()
-	methods := strings.Split(req.Message().GetMethod(), "/")
-	method := methods[len(methods)-1]
+	method := req.Message().GetMethod()
+	//_ = m
+	//methods := strings.Split(req.Message().GetMethod(), "/")
+	//method := methods[len(methods)-1]
 	if method == "" {
 		method = "default"
 	}
@@ -327,25 +324,26 @@ func constructRequest(ctx context.Context, req *invokev1.InvokeMethodRequest, id
 	invokev1.InternalMetadataToHTTPHeader(ctx, req.Metadata(), channelReq.Header.Set)
 
 	// HTTP client needs to inject traceparent header for proper tracing stack.
-	span := diagUtils.SpanFromContext(ctx)
-	tp := diag.SpanContextToW3CString(span.SpanContext())
-	ts := diag.TraceStateToW3CString(span.SpanContext())
-	channelReq.Header.Set("traceparent", tp)
-	if ts != "" {
-		channelReq.Header.Set("tracestate", ts)
-	}
+	//span := diagUtils.SpanFromContext(ctx)
+	//tp := diag.SpanContextToW3CString(span.SpanContext())
+	//ts := diag.TraceStateToW3CString(span.SpanContext())
+	//channelReq.Header.Set("traceparent", tp)
+	//if ts != "" {
+	//	channelReq.Header.Set("tracestate", ts)
+	//}
 
 	return channelReq, nil
 }
 
 // DeconstructRequest convert http to invoke format
 func DeconstructRequest(req *http.Request) (*invokev1.InvokeMethodRequest, error) {
-	reqMethod := req.Method
+	// /actorType/method
+	reqMethod := req.URL.Path
 	parts := strings.Split(reqMethod, "/")
 	if len(parts) < 2 {
 		return nil, fmt.Errorf("error method format: %s", reqMethod)
 	}
-	actorType, method := parts[0], strings.Join(parts[1:], "/")
+	actorType, method := parts[1], strings.Join(parts[2:], "/")
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		return nil, err

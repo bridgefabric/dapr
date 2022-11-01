@@ -9,6 +9,8 @@ import (
 	"github.com/dapr/dapr/pkg/wasmapi"
 )
 
+//var log = logger.NewLogger("dapr.wasmserver")
+
 // todo ioc
 
 type wasmServer struct {
@@ -16,16 +18,20 @@ type wasmServer struct {
 }
 
 func (m *wasmServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	log.Info("wasmServer.ServeHTTP")
 	invokeReq, err := wasmapi.DeconstructRequest(req)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
+		return
 	}
 	resp, err := m.c.InvokeMethod(context.Background(), invokeReq)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
+		return
 	}
+	log.Info("wasmServer.ServeHTTP success")
 	w.WriteHeader(http.StatusOK)
 	_, body := resp.RawData()
 	w.Write(body)

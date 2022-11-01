@@ -2554,7 +2554,8 @@ func (a *DaprRuntime) createAppChannel() (err error) {
 		}
 		ch.(*httpChannel.Channel).SetAppHealthCheckPath(a.runtimeConfig.AppHealthCheckHTTPPath)
 	case WASMProtocol:
-		ch, err = wasmapi.CreateWASMChannel(a.runtimeConfig.ApplicationPort, a.runtimeConfig.MaxConcurrency, a.globalConfig.Spec.TracingSpec, a.runtimeConfig.AppSSL, a.runtimeConfig.MaxRequestBodySize, a.runtimeConfig.ReadBufferSize, a.runtimeConfig.ID, a.sendToOutputBinding)
+		ch, err = wasmapi.CreateWASMChannel(a.runtimeConfig.ApplicationPort, a.runtimeConfig.MaxConcurrency, a.globalConfig.Spec.TracingSpec, a.runtimeConfig.AppSSL, a.runtimeConfig.MaxRequestBodySize, a.runtimeConfig.ReadBufferSize,
+			p2p.P2PHost.ID().String(), a.sendToOutputBinding)
 		if err != nil {
 			return err
 		}
