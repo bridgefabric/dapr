@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	_ "net/http/pprof"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/dapr/dapr/pkg/config"
 	"github.com/dapr/dapr/pkg/p2p"
+	"github.com/dapr/dapr/pkg/wasmapi/w3s"
 )
 
 // BuildDate: Binary file compilation time
@@ -60,15 +62,29 @@ func main() {
 			Name:    "upload",
 			Aliases: []string{"u"},
 			Usage:   "upload a wasm file to ipfs",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Required: true,
-					Name:     "file",
-					Usage:    "wasm binary file",
-				},
-			},
-			Action: func(cCtx *cli.Context) error {
+			//Flags: []cli.Flag{
+			//	&cli.StringFlag{
+			//		Required: true,
+			//		Name:     "file",
+			//		Usage:    "wasm binary file",
+			//	},
+			//},
+			Action: func(c *cli.Context) error {
+				f := c.Args().Get(0)
+				if f == "" {
+					return errors.New("no file")
+				}
+				file, err := os.Open(f)
+				if err != nil {
+					return err
+				}
+				defer file.Close()
 
+				cid, err := w3s.PutFile(context.Background(), file)
+				if err != nil {
+					return err
+				}
+				fmt.Println("upload success, cid: ", string(cid))
 				return nil
 			},
 		},
