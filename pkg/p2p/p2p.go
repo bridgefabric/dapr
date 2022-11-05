@@ -14,6 +14,7 @@ import (
 )
 
 var P2PHost host.Host
+var NodeID string
 var ErrP2PNotInitialized = errors.New("P2P host is not initialized")
 
 func CreatePrivateKey() ([]byte, string, error) {

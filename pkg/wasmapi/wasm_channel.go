@@ -121,6 +121,7 @@ func (h *Channel) callLocalActor(ctx context.Context, req *invokev1.InvokeMethod
 	if method == "" {
 		method = "default"
 	}
+	log.Infof("actor %s is called for method %s", actorType, method)
 
 	pool, err := h.getActorPool(actorType)
 	if err != nil {
@@ -136,7 +137,7 @@ func (h *Channel) callLocalActor(ctx context.Context, req *invokev1.InvokeMethod
 	if err != nil {
 		return nil, err
 	}
-
+	eth.CS.ReduceActor <- actorType
 	rsp = invokev1.NewInvokeMethodResponse(int32(200), "", nil)
 	rsp.WithRawData(res, "")
 	return rsp, err
